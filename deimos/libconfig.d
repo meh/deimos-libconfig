@@ -132,7 +132,7 @@ int config_setting_get_int (const config_setting_t* setting);
 long config_setting_get_int64 (const config_setting_t* setting);
 double config_setting_get_float (const config_setting_t* setting);
 bool config_setting_get_bool (const config_setting_t* setting);
-immutable(char*) config_setting_get_string (const config_setting_t* setting);
+const(char*) config_setting_get_string (const config_setting_t* setting);
 
 bool config_setting_lookup_int (const config_setting_t* setting, const char* name, int* value);
 bool config_setting_lookup_int64 (const config_setting_t* setting, const char* name, long* value);
@@ -153,7 +153,7 @@ int config_setting_get_int_elem (const config_setting_t* setting, int idx);
 long config_setting_get_int64_elem (const config_setting_t* setting, int idx);
 double config_setting_get_float_elem (const config_setting_t* setting, int idx);
 bool config_setting_get_bool_elem (const config_setting_t* setting, int idx);
-immutable (char*) config_setting_get_string_elem (const config_setting_t* setting, int idx);
+const (char*) config_setting_get_string_elem (const config_setting_t* setting, int idx);
 
 config_setting_t* config_setting_set_int_elem (config_setting_t* setting, int idx, int value);
 config_setting_t* config_setting_set_int64_elem (config_setting_t* setting, int idx, long value);
@@ -161,7 +161,7 @@ config_setting_t* config_setting_set_float_elem (config_setting_t* setting, int 
 config_setting_t* config_setting_set_bool_elem (config_setting_t* setting, int idx, bool value);
 config_setting_t* config_setting_set_string_elem (config_setting_t* setting, int idx, const char* value);
 
-immutable (char*) config_get_include_dir (const config_t* config)
+const (char*) config_get_include_dir (const config_t* config)
 {
 	return config.include_dir;
 }
@@ -201,14 +201,14 @@ bool config_setting_is_scalar (const config_setting_t* setting)
 	return setting.type == CONFIG_TYPE_BOOL || setting.type == CONFIG_TYPE_STRING || config_setting_is_scalar(setting);
 }
 
-immutable (char*) config_setting_name (const config_setting_t* setting)
+const (char*) config_setting_name (const config_setting_t* setting)
 {
 	return setting.name;
 }
 
 config_setting_t* config_setting_parent (const config_setting_t* setting)
 {
-	return setting.parent;
+	return cast (config_setting_t*) setting.parent;
 }
 
 bool config_setting_is_root (const config_setting_t* setting)
@@ -248,7 +248,7 @@ bool config_lookup_string (const config_t* config, const char* path, const char*
 
 config_setting_t* config_root_setting (const config_t* config)
 {
-	return config.root;
+	return cast (config_setting_t*) config.root;
 }
 
 void config_set_default_format (config_t* config, short format)
@@ -266,27 +266,27 @@ void config_set_tab_width (config_t* config, ushort width)
 	config.tab_width = width & 0x0F;
 }
 
-ubyte config_get_tab_width (const config_t* config)
+ushort config_get_tab_width (const config_t* config)
 {
 	return config.tab_width;
 }
 
-ushort config_setting_source_line (const config_setting_t* setting)
+uint config_setting_source_line (const config_setting_t* setting)
 {
 	return setting.line;
 }
 
-immutable (char*) config_setting_source_file (const config_setting_t* setting)
+const (char*) config_setting_source_file (const config_setting_t* setting)
 {
 	return setting.file;
 }
 
-immutable (char*) config_error_text (const config_t* config)
+const (char*) config_error_text (const config_t* config)
 {
 	return config.error_text;
 }
 
-immutable (char*) config_error_file (const config_t* config)
+const (char*) config_error_file (const config_t* config)
 {
 	return config.error_file;
 }

@@ -28,33 +28,11 @@ class Config
 
 	alias Algebraic!(Type, int, long, double, string, bool) Value;
 
-	Type to(T : Type) (Value value)
-	{
-		if (value.type == typeid(int)) {
-			return Type.Int;
-		}
-		else if (value.type == typeid(long)) {
-			return Type.Long;
-		}
-		else if (value.type == typeid(double)) {
-			return Type.Float;
-		}
-		else if (value.type == typeid(string)) {
-			return Type.String;
-		}
-		else if (value.type == typeid(bool)) {
-			return Type.Bool;
-		}
-		else {
-			return value.get!Type;
-		}
-	}
-
 	static class Setting
 	{
 		struct Source {
 			string file;
-			ushort line;
+			uint   line;
 		}
 
 		this (config_setting_t* value)
@@ -93,7 +71,7 @@ class Config
 		Setting opIndex (uint index)
 		{
 			enforce(isList || isArray, "the Setting has to be either an Array or List");
-			enforceEx!RangeError(index < length);
+			enforce(index < length, new RangeError);
 
 			return new Setting(config_setting_get_elem(native, index));
 		}
@@ -123,19 +101,19 @@ class Config
 		void opIndexAssign (Value value, uint index)
 		{
 			enforce(isList || isArray, "the Setting has to be either an Array or List");
-			enforceEx!RangeError(index < length);
+			enforce(index < length, new RangeError);
 		}
 
 		void opIndexAssign (Value[] value, uint index)
 		{
 			enforce(isList || isArray, "the Setting has to be either an Array or List");
-			enforceEx!RangeError(index < length);
+			enforce(index < length, new RangeError);
 		}
 
 		void opIndexAssign (Value[string] value, uint index)
 		{
 			enforce(isList || isArray, "the Setting has to be either an Array or List");
-			enforceEx!RangeError(index < length);
+			enforce(index < length, new RangeError);
 		}
 
 		void pushBack (Value value)
@@ -198,22 +176,22 @@ class Config
 				case Type.Group:
 				case Type.Array:
 				case Type.List:
-					return type;
+					return Value(type);
 
 				case Type.Int:
-					return config_setting_get_int(native);
+					return Value(config_setting_get_int(native));
 
 				case Type.Long:
-					return config_setting_get_int64(native);
+					return Value(config_setting_get_int64(native));
 
 				case Type.Float:
-					return config_setting_get_float(native);
+					return Value(config_setting_get_float(native));
 
 				case Type.Bool:
-					return config_setting_get_bool(native);
+					return Value(config_setting_get_bool(native));
 
 				case Type.String:
-					return config_setting_get_string(native).to!string;
+					return Value(config_setting_get_string(native).to!string);
 			}
 		}
 
@@ -395,3 +373,26 @@ class Config
 private:
 	config_t _config;
 }
+
+private:
+	Config.Type to(T : Config.Type) (Config.Value value)
+	{
+		if (value.type == typeid(int)) {
+			return Config.Type.Int;
+		}
+		else if (value.type == typeid(long)) {
+			return Config.Type.Long;
+		}
+		else if (value.type == typeid(double)) {
+			return Config.Type.Float;
+		}
+		else if (value.type == typeid(string)) {
+			return Config.Type.String;
+		}
+		else if (value.type == typeid(bool)) {
+			return Config.Type.Bool;
+		}
+		else {
+			return value.get!(Config.Type);
+		}
+	}
