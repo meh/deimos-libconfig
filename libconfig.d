@@ -362,12 +362,16 @@ class Config
 
 	this (FILE* input)
 	{
+		_internal = new config_t;
+
 		config_init(native);
 		config_read(native, input);
 	}
 
 	this (string input)
 	{
+		_internal = new config_t;
+
 		config_init(native);
 
 		if (exists(input)) {
@@ -380,12 +384,13 @@ class Config
 
 	this (config_t* config)
 	{
-		_wrapped = config;
+		_internal = config;
+		_wrapper  = true;
 	}
 
 	~this ()
 	{
-		if (!_wrapped) {
+		if (!isWrapper) {
 			config_destroy(native);
 		}
 	}
@@ -467,12 +472,17 @@ class Config
 
 	@property native ()
 	{
-		return _wrapped ? _wrapped : &_config;
+		return _internal;
+	}
+
+	@property isWrapper ()
+	{
+		return _wrapper;
 	}
 
 private:
-	config_t  _config;
-	config_t* _wrapped;
+	config_t* _internal;
+	bool      _wrapper;
 }
 
 private:
