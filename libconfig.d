@@ -139,7 +139,6 @@ class Config
 		void opIndexAssign (Value value, string name)
 		{
 			enforce(isGroup, "the Setting has to be a Group");
-			enforce(value.toType != Type.None);
 
 			auto setting       = new Setting(config_setting_add(native, name.toStringz(), value.toType), _config);
 			     setting.value = value;
@@ -149,7 +148,6 @@ class Config
 		{
 			enforce(isAggregate, "the Setting has to be an Aggregate");
 			enforce(index < length, new RangeError);
-			enforce(value.toType != Type.None);
 		}
 
 		Range opSlice ()
@@ -161,7 +159,7 @@ class Config
 		{
 			int result = 0;
 
-			foreach (setting; opSlice()) {
+			foreach (setting; this[]) {
 				result = block(setting.name, setting);
 
 				if (result) {
@@ -176,7 +174,7 @@ class Config
 		{
 			int result = 0;
 
-			foreach_reverse (setting; opSlice()) {
+			foreach_reverse (setting; this[]) {
 				result = block(setting.name, setting);
 
 				if (result) {
@@ -350,6 +348,11 @@ class Config
 		@property native ()
 		{
 			return _internal;
+		}
+
+		override string toString ()
+		{
+			return value.toString();
 		}
 
 	private:
