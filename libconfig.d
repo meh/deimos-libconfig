@@ -28,6 +28,8 @@ class Config
 		List
 	}
 
+	alias Variant Value;
+
 	static class Setting
 	{
 		struct Source
@@ -134,7 +136,7 @@ class Config
 			return new Setting(config_setting_get_elem(native, index), _config);
 		}
 
-		void opIndexAssign (Variant value, string name)
+		void opIndexAssign (Value value, string name)
 		{
 			enforce(isGroup, "the Setting has to be a Group");
 			enforce(value.toType != Type.None);
@@ -143,7 +145,7 @@ class Config
 			     setting.value = value;
 		}
 
-		void opIndexAssign (Variant value, uint index)
+		void opIndexAssign (Value value, uint index)
 		{
 			enforce(isAggregate, "the Setting has to be an Aggregate");
 			enforce(index < length, new RangeError);
@@ -185,7 +187,7 @@ class Config
 			return result;
 		}
 
-		void pushBack (Variant value)
+		void pushBack (Value value)
 		{
 			enforce(isList || isArray, "the Setting has to be either an Array or List");
 
@@ -219,50 +221,50 @@ class Config
 			return cast (Type) config_setting_type(native);
 		}
 
-		@property value (Variant value)
+		@property value (Value value)
 		{
 
 		}
 
-		@property Variant value ()
+		@property Value value ()
 		{
 			final switch (type) {
 				case Type.None:
-					return Variant(null);
+					return Value(null);
 
 				case Type.Group:
-					Variant[string] result;
+					Value[string] result;
 
 					foreach (name, setting; this) {
 						result[name] = setting.value;
 					}
 
-					return Variant(result);
+					return Value(result);
 
 				case Type.Array:
 				case Type.List:
-					Variant[] result;
+					Value[] result;
 
 					foreach (setting; this[]) {
 						result ~= setting.value;
 					}
 
-					return Variant(result);
+					return Value(result);
 
 				case Type.Int:
-					return Variant(config_setting_get_int(native));
+					return Value(config_setting_get_int(native));
 
 				case Type.Long:
-					return Variant(config_setting_get_int64(native));
+					return Value(config_setting_get_int64(native));
 
 				case Type.Float:
-					return Variant(config_setting_get_float(native));
+					return Value(config_setting_get_float(native));
 
 				case Type.Bool:
-					return Variant(config_setting_get_bool(native));
+					return Value(config_setting_get_bool(native));
 
 				case Type.String:
-					return Variant(config_setting_get_string(native).to!string);
+					return Value(config_setting_get_string(native).to!string);
 			}
 		}
 
@@ -471,7 +473,7 @@ private:
 }
 
 private:
-	Config.Type toType (Variant value)
+	Config.Type toType (Config.Value value)
 	{
 		if (value.type == typeid(int)) {
 			return Config.Type.Int;
@@ -488,10 +490,10 @@ private:
 		else if (value.type == typeid(bool)) {
 			return Config.Type.Bool;
 		}
-		else if (value.type == typeid(Variant[])) {
+		else if (value.type == typeid(Config.Value[])) {
 			return Config.Type.List;
 		}
-		else if (value.type == typeid(Variant[string])) {
+		else if (value.type == typeid(Config.Value[string])) {
 			return Config.Type.Group;
 		}
 		else {
