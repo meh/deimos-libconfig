@@ -1,4 +1,3 @@
 #! /bin/sh
 
-dmd -oftest test.d libconfig.d deimos/libconfig.d -L-lconfig && ./test
-rm -f test
+dmd -g -gc -gs -oftest test.d libconfig.d deimos/libconfig.d -L-lconfig && ./test

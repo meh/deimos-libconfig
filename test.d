@@ -9,4 +9,7 @@ void main ()
 	assert(config["application"].isGroup);
 	assert(config["application"]["list"].length == 3);
 	assert(config["application"]["books"][0]["price"].value == 29.95);
+
+	config["version"].value = 23;
+	assert(config["version"].value == 23);
 }

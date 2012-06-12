@@ -6,6 +6,7 @@ import std.file;
 import std.conv;
 import std.string;
 import std.exception;
+import std.array;
 
 class Config
 {
@@ -113,6 +114,11 @@ class Config
 			return false;
 		}
 
+		bool opIn_r (string path)
+		{
+			return this[path] !is null;
+		}
+
 		Setting opIndex (string path)
 		{
 			enforce(isGroup, "the Setting has to be a Group");
@@ -140,7 +146,7 @@ class Config
 		{
 			enforce(isGroup, "the Setting has to be a Group");
 
-			auto setting       = new Setting(config_setting_add(native, name.toStringz(), value.toType), _config);
+			auto setting       = name in this ? this[name] : new Setting(config_setting_add(native, name.toStringz(), value.toType), _config);
 			     setting.value = value;
 		}
 
@@ -148,6 +154,9 @@ class Config
 		{
 			enforce(isAggregate, "the Setting has to be an Aggregate");
 			enforce(index < length, new RangeError);
+
+			auto setting       = this[index];
+			     setting.value = value;
 		}
 
 		Range opSlice ()
@@ -189,6 +198,30 @@ class Config
 			return result;
 		}
 
+		@property front ()
+		{
+			return this[0];
+		}
+
+		@property back ()
+		{
+			return this[this.length - 1];
+		}
+
+		void popBack ()
+		{
+			assert(!empty, "Attempting to pop back of an empty Setting");
+
+			remove(length - 1);
+		}
+
+		void popFront ()
+		{
+			assert(!empty, "Attempting to pop front of an empty Setting");
+
+			remove(0);
+		}
+
 		void pushBack (Value value)
 		{
 			enforce(isList || isArray, "the Setting has to be either an Array or List");
@@ -218,6 +251,13 @@ class Config
 			return config_setting_remove_elem(native, index);
 		}
 
+		void clear ()
+		{
+			while (!empty) {
+				popBack();
+			}
+		}
+
 		@property type ()
 		{
 			return cast (Type) config_setting_type(native);
@@ -225,10 +265,76 @@ class Config
 
 		@property value (Value value)
 		{
+			enforce(value.toType != Type.None, "value unsupported");
 
+			if (isAggregate) {
+				clear();
+			}
+
+			native.type = cast (short) value.toType;
+
+			final switch (value.toType) {
+				case Type.None:
+					assert(0);
+
+				case Type.Group:
+					foreach (name, val; value.get!(Value[string])) {
+						this[name] = val;
+					}
+
+					break;
+
+				case Type.Array:
+				case Type.List:
+					foreach (val; value.get!(Value[])) {
+						pushBack(val);
+					}
+
+					break;
+
+				case Type.Int:
+					config_setting_set_int(native, value.get!int);
+					break;
+
+				case Type.Long:
+					config_setting_set_int64(native, value.get!long);
+					break;
+
+				case Type.Float:
+					config_setting_set_float(native, value.get!double);
+					break;
+
+				case Type.Bool:
+					config_setting_set_bool(native, value.get!bool);
+					break;
+
+				case Type.String:
+					config_setting_set_string(native, value.get!(string).toStringz());
+					break;
+			}
 		}
 
-		@property Value value ()
+		@property value (int val)
+		{
+			value = Value(val);
+		}
+
+		@property value (long val)
+		{
+			value = Value(val);
+		}
+
+		@property value (double val)
+		{
+			value = Value(val);
+		}
+
+		@property value (bool val)
+		{
+			value = Value(val);
+		}
+
+		@property value ()
 		{
 			final switch (type) {
 				case Type.None:
@@ -508,7 +614,21 @@ private:
 			return Config.Type.Bool;
 		}
 		else if (value.type == typeid(Config.Value[])) {
-			return Config.Type.List;
+			auto list = value.get!(Config.Value[]);
+
+			if (list.empty) {
+				return Config.Type.List;
+			}
+
+			auto first = list[0].type;
+
+			foreach (piece; list) {
+				if (piece.type != first) {
+					return Config.Type.List;
+				}
+			}
+
+			return Config.Type.Array;
 		}
 		else if (value.type == typeid(Config.Value[string])) {
 			return Config.Type.Group;
