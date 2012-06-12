@@ -9,12 +9,14 @@ import std.exception;
 
 class Config
 {
-	enum Format {
+	enum Format
+	{
 		Default,
 		Hex
 	}
 
-	enum Type {
+	enum Type
+	{
 		None,
 		Group,
 		Int,
@@ -26,18 +28,74 @@ class Config
 		List
 	}
 
-	alias Algebraic!(Type, int, long, double, string, bool) Value;
-
 	static class Setting
 	{
-		struct Source {
+		struct Source
+		{
 			string file;
 			uint   line;
+		}
+
+		struct Range
+		{
+			private Setting _setting;
+			private uint    _current;
+			private uint    _length;
+
+			this (Setting setting)
+			{
+				assert(setting.isAggregate);
+
+				_setting = setting;
+				_length  = setting.length;
+				_current = 0;
+			}
+
+			@property bool empty ()
+			{
+				return _current == _length;
+			}
+
+			@property uint length ()
+			{
+				return _length - _current;
+			}
+
+			@property front ()
+			{
+				return _setting[_current];
+			}
+
+			@property back ()
+			{
+				return _setting[_length - 1];
+			}
+
+			void popFront ()
+			{
+				enforce(!empty);
+
+				_current++;
+			}
+
+			void popBack ()
+			{
+				enforce(!empty);
+
+				_length--;
+			}
 		}
 
 		this (config_setting_t* value)
 		{
 			_internal = value;
+		}
+
+		this (config_setting_t* value, Config config)
+		{
+			this(value);
+
+			_config = config;
 		}
 
 		override bool opEquals (Object other)
@@ -58,11 +116,11 @@ class Config
 			enforce(isGroup, "the Setting has to be a Group");
 
 			if (auto setting = config_setting_get_member(native, path.toStringz())) {
-				return new Setting(setting);
+				return new Setting(setting, _config);
 			}
 
 			if (auto setting = config_lookup_from(native, path.toStringz())) {
-				return new Setting(setting);
+				return new Setting(setting, _config);
 			}
 
 			return null;
@@ -70,72 +128,69 @@ class Config
 
 		Setting opIndex (uint index)
 		{
-			enforce(isList || isArray, "the Setting has to be either an Array or List");
+			enforce(isAggregate, "the Setting has to be either an Array or List");
 			enforce(index < length, new RangeError);
 
-			return new Setting(config_setting_get_elem(native, index));
+			return new Setting(config_setting_get_elem(native, index), _config);
 		}
 
-		void opIndexAssign (Value value, string name)
+		void opIndexAssign (Variant value, string name)
 		{
 			enforce(isGroup, "the Setting has to be a Group");
+			enforce(value.toType != Type.None);
 
-			auto setting       = new Setting(config_setting_add(native, name.toStringz(), value.to!Type));
+			auto setting       = new Setting(config_setting_add(native, name.toStringz(), value.toType), _config);
 			     setting.value = value;
 		}
 
-		void opIndexAssign (Value[] values, string name)
+		void opIndexAssign (Variant value, uint index)
 		{
-			enforce(isGroup, "the Setting has to be a Group");
-
-			auto setting = new Setting(config_setting_add(native, name.toStringz(), Type.List));
-		}
-
-		void opIndexAssign (Value[string] values, string name)
-		{
-			enforce(isGroup, "the Setting has to be a Group");
-
-			auto setting = new Setting(config_setting_add(native, name.toStringz(), Type.Group));
-		}
-
-		void opIndexAssign (Value value, uint index)
-		{
-			enforce(isList || isArray, "the Setting has to be either an Array or List");
+			enforce(isAggregate, "the Setting has to be an Aggregate");
 			enforce(index < length, new RangeError);
+			enforce(value.toType != Type.None);
 		}
 
-		void opIndexAssign (Value[] value, uint index)
+		Range opSlice ()
 		{
-			enforce(isList || isArray, "the Setting has to be either an Array or List");
-			enforce(index < length, new RangeError);
+			return Range(this);
 		}
 
-		void opIndexAssign (Value[string] value, uint index)
+		int opApply (int delegate (string, Setting) block)
 		{
-			enforce(isList || isArray, "the Setting has to be either an Array or List");
-			enforce(index < length, new RangeError);
+			int result = 0;
+
+			foreach (setting; opSlice()) {
+				result = block(setting.name, setting);
+
+				if (result) {
+					break;
+				}
+			}
+
+			return result;
 		}
 
-		void pushBack (Value value)
+		int opApplyReverse (int delegate (string, Setting) block)
+		{
+			int result = 0;
+
+			foreach_reverse (setting; opSlice()) {
+				result = block(setting.name, setting);
+
+				if (result) {
+					break;
+				}
+			}
+
+			return result;
+		}
+
+		void pushBack (Variant value)
 		{
 			enforce(isList || isArray, "the Setting has to be either an Array or List");
 
-			auto setting       = new Setting(config_setting_add(native, null, value.to!Type));
+			auto setting       = new Setting(config_setting_add(native, null, value.toType), _config);
 			     setting.value = value;
-		}
-
-		void pushBack (Value[] values)
-		{
-			enforce(isList || isArray, "the Setting has to be either an Array or List");
-
-			auto setting = new Setting(config_setting_add(native, name.toStringz(), Type.List));
-		}
-
-		void pushBack (Value[string] values)
-		{
-			enforce(isList || isArray, "the Setting has to be either an Array or List");
-
-			auto setting = new Setting(config_setting_add(native, name.toStringz(), Type.Group));
 		}
 
 		int indexOf (Setting setting)
@@ -154,7 +209,7 @@ class Config
 
 		bool remove (uint index)
 		{
-			enforce(isList || isArray, "the Setting has to be either an Array or List");
+			enforce(isAggregate, "the Setting has to be either an Array or List");
 
 			return config_setting_remove_elem(native, index);
 		}
@@ -164,34 +219,50 @@ class Config
 			return cast (Type) config_setting_type(native);
 		}
 
-		@property value (Value value)
+		@property value (Variant value)
 		{
 
 		}
 
-		@property Value value ()
+		@property Variant value ()
 		{
 			final switch (type) {
 				case Type.None:
+					return Variant(null);
+
 				case Type.Group:
+					Variant[string] result;
+
+					foreach (name, setting; this) {
+						result[name] = setting.value;
+					}
+
+					return Variant(result);
+
 				case Type.Array:
 				case Type.List:
-					return Value(type);
+					Variant[] result;
+
+					foreach (setting; this[]) {
+						result ~= setting.value;
+					}
+
+					return Variant(result);
 
 				case Type.Int:
-					return Value(config_setting_get_int(native));
+					return Variant(config_setting_get_int(native));
 
 				case Type.Long:
-					return Value(config_setting_get_int64(native));
+					return Variant(config_setting_get_int64(native));
 
 				case Type.Float:
-					return Value(config_setting_get_float(native));
+					return Variant(config_setting_get_float(native));
 
 				case Type.Bool:
-					return Value(config_setting_get_bool(native));
+					return Variant(config_setting_get_bool(native));
 
 				case Type.String:
-					return Value(config_setting_get_string(native).to!string);
+					return Variant(config_setting_get_string(native).to!string);
 			}
 		}
 
@@ -202,7 +273,7 @@ class Config
 
 		@property empty ()
 		{
-			return length == 0;
+			return type == Type.None || length == 0;
 		}
 
 		@property isGroup ()
@@ -243,7 +314,7 @@ class Config
 		@property parent ()
 		{
 			if (auto setting = config_setting_parent(native)) {
-				return new Setting(setting);
+				return new Setting(setting, _config);
 			}
 
 			return null;
@@ -269,6 +340,11 @@ class Config
 			return Source(config_setting_source_file(native).to!string, config_setting_source_line(native));
 		}
 
+		@property config ()
+		{
+			return _config ? _config : new Config(config_setting_config(native));
+		}
+
 		@property native ()
 		{
 			return _internal;
@@ -276,6 +352,7 @@ class Config
 
 	private:
 		config_setting_t* _internal;
+		Config            _config;
 	}
 
 	this (FILE* input)
@@ -296,9 +373,16 @@ class Config
 		}
 	}
 
+	this (config_t* config)
+	{
+		_wrapped = config;
+	}
+
 	~this ()
 	{
-		config_destroy(native);
+		if (!_wrapped) {
+			config_destroy(native);
+		}
 	}
 
 	void save (FILE* output)
@@ -311,18 +395,29 @@ class Config
 		config_write_file(native, path.toStringz());
 	}
 
-	Setting opIndex (string path)
+	auto opIndex (string path)
 	{
-		if (auto setting = config_lookup(native, path.toStringz())) {
-			return new Setting(setting);
-		}
+		return root[path];
+	}
 
-		return null;
+	auto opSlice ()
+	{
+		return root.opSlice();
+	}
+
+	int opApply (int delegate (string, Setting) block)
+	{
+		return root.opApply(block);
+	}
+
+	int opApplyReverse (int delegate (string, Setting) block)
+	{
+		return root.opApplyReverse(block);
 	}
 
 	@property root ()
 	{
-		return new Setting(config_root_setting(native));
+		return new Setting(config_root_setting(native), this);
 	}
 
 	@property autoConvert ()
@@ -367,15 +462,16 @@ class Config
 
 	@property native ()
 	{
-		return &_config;
+		return _wrapped ? _wrapped : &_config;
 	}
 
 private:
-	config_t _config;
+	config_t  _config;
+	config_t* _wrapped;
 }
 
 private:
-	Config.Type to(T : Config.Type) (Config.Value value)
+	Config.Type toType (Variant value)
 	{
 		if (value.type == typeid(int)) {
 			return Config.Type.Int;
@@ -392,7 +488,13 @@ private:
 		else if (value.type == typeid(bool)) {
 			return Config.Type.Bool;
 		}
+		else if (value.type == typeid(Variant[])) {
+			return Config.Type.List;
+		}
+		else if (value.type == typeid(Variant[string])) {
+			return Config.Type.Group;
+		}
 		else {
-			return value.get!(Config.Type);
+			return Config.Type.None;
 		}
 	}

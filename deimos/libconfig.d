@@ -218,7 +218,7 @@ bool config_setting_is_root (const config_setting_t* setting)
 
 int config_setting_index (const config_setting_t* setting);
 
-int config_setting_length (const config_setting_t* setting);
+uint config_setting_length (const config_setting_t* setting);
 
 config_setting_t* config_setting_get_elem (const config_setting_t* setting, uint idx);
 
@@ -249,6 +249,11 @@ bool config_lookup_string (const config_t* config, const char* path, const char*
 config_setting_t* config_root_setting (const config_t* config)
 {
 	return cast (config_setting_t*) config.root;
+}
+
+config_t* config_setting_config (const config_setting_t* setting)
+{
+	return cast (config_t*) setting.config;
 }
 
 void config_set_default_format (config_t* config, short format)
