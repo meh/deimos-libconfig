@@ -157,6 +157,8 @@ class Config
 
 		int opApply (int delegate (string, Setting) block)
 		{
+			enforce(isGroup, "you can only foreach over a Group");
+
 			int result = 0;
 
 			foreach (setting; this[]) {
@@ -172,6 +174,8 @@ class Config
 
 		int opApplyReverse (int delegate (string, Setting) block)
 		{
+			enforce(isGroup, "you can only foreach_reverse over a Group");
+
 			int result = 0;
 
 			foreach_reverse (setting; this[]) {
